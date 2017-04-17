@@ -155,7 +155,6 @@ func (l *KLease) Update(other *KLease) {
 	l.SetParentShardIds(other.parentShardIds)
 }
 
-//todo: finish this later
 func (l *KLease) HashCode() string {
 	h := md5.New()
 	io.WriteString(h, strconv.FormatInt(l.leaseCounter, 10)+l.leaseOwner+l.leaseKey)
@@ -171,7 +170,7 @@ func (l *KLease) Equals(other *KLease) bool {
 		l.leaseKey != other.leaseKey ||
 		l.checkpoint != other.checkpoint ||
 		l.ownerSwitchesSinceCheckpoint != other.ownerSwitchesSinceCheckpoint ||
-		reflect.DeepEqual(l.parentShardIds, other.parentShardIds) {
+		!reflect.DeepEqual(l.parentShardIds, other.parentShardIds) {
 		return false
 	}
 

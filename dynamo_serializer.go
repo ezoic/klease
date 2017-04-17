@@ -23,7 +23,7 @@ func NewDynamoSerializer() *DynamoSerializer {
 	return serializer
 }
 
-func (s *DynamoSerializer) ToDynamoRecord(lease KLease) map[string]*dynamodb.AttributeValue {
+func (s *DynamoSerializer) ToDynamoRecord(lease *KLease) map[string]*dynamodb.AttributeValue {
 	result := map[string]*dynamodb.AttributeValue{}
 	result[LeaseKeyKey] = s.utils.CreateAttributeValueS(lease.GetLeaseKey())
 	result[LeaseCounterKey] = s.utils.CreateAttributeValueN(lease.GetLeaseCounter())
@@ -32,13 +32,16 @@ func (s *DynamoSerializer) ToDynamoRecord(lease KLease) map[string]*dynamodb.Att
 	}
 
 	result[OwnerSwitchesKey] = s.utils.CreateAttributeValueN(lease.GetOwnerSwitchesSinceCheckpoint())
-	result[CheckpointSequenceNumberKey] = s.utils.CreateAttributeValueS(lease.GetCheckpoint().SequenceNumber)
+	if lease.GetCheckpoint() != nil {
+		result[CheckpointSequenceNumberKey] = s.utils.CreateAttributeValueS(lease.GetCheckpoint().SequenceNumber)
+	}
+
 	//TODO if we need to add subsequence
 	//result[CheckpointSubsequenceNumberKey] = s.utils.CreateAttributeValueN(lease.GetLeaseCounter())
-	if lease.GetParentShardIds() != nil && len(lease.GetParentShardIds()) > 0 {
-		//TODO figure out parent shard id keys
-		//result[ParentShardIdKey] = s.utils.CreateAttributeValueS(lease.GetParentShardIds())
-	}
+	//if lease.GetParentShardIds() != nil && len(lease.GetParentShardIds()) > 0 {
+	//TODO figure out parent shard id keys
+	//result[ParentShardIdKey] = s.utils.CreateAttributeValueS(lease.GetParentShardIds())
+	//}
 
 	return result
 }

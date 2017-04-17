@@ -1,10 +1,13 @@
 package klease
 
-import "github.com/nu7hatch/gouuid"
-import "errors"
-import "sync"
-import "time"
-import "fmt"
+import (
+	"errors"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/nu7hatch/gouuid"
+)
 
 type Renewer struct {
 	leaseManager       *Manager
@@ -27,13 +30,14 @@ func NewKLeaseRenewer(leaseManager *Manager, workerId string, leaseDurationNanos
 		leaseManager:       leaseManager,
 		workerId:           workerId,
 		leaseDurationNanos: leaseDurationNanos,
+		ownedLeases:        map[string]*KLease{},
 		ownedLeasesMutex:   map[string]*sync.Mutex{},
 	}
 }
 
-//todo
 func (r *Renewer) RenewLeases() error {
-	var lostLeases, leasesInUnknownState int64
+	//l4g.Debug("Worker %s - Renewing Leases", r.workerId)
+	var lostLeases, leasesInUnknownState, keptLeases int64
 	var lastErr error
 	renewLeaseTasks := make(chan renewResult, len(r.ownedLeases))
 	sem := make(chan bool, MaxWorkersForRenewing)
@@ -49,9 +53,12 @@ func (r *Renewer) RenewLeases() error {
 			lastErr = result.err
 		} else if !result.success {
 			lostLeases++
+		} else {
+			keptLeases++
 		}
 
 	}
+	//l4g.Debug("Worker %s - Renewed %d leases. %d leases in unknown state. %d leases lost", r.workerId, keptLeases, leasesInUnknownState, lostLeases)
 	if leasesInUnknownState > 0 {
 		return fmt.Errorf("Encountered an exception while renewing leases. The number of leases which "+
 			"might not have been renewed is %d. Last exception was: %s", leasesInUnknownState, lastErr)
@@ -72,7 +79,7 @@ func (r *Renewer) renewLeaseInner(lease *KLease, renewEvenIfExpired bool) (bool,
 	var err error
 	leaseKey := lease.GetLeaseKey()
 	renewedLease := false
-
+	//l4g.Debug("Worker %s - Renewing Lease %s", r.workerId, leaseKey)
 	var locker *sync.Mutex
 	if _, ok := r.ownedLeasesMutex[leaseKey]; ok {
 		locker = r.ownedLeasesMutex[leaseKey]
@@ -97,12 +104,14 @@ func (r *Renewer) renewLeaseInner(lease *KLease, renewEvenIfExpired bool) (bool,
 			}
 		}
 		if renewedLease {
+			//l4g.Debug("Worker %s - Lease %s renewed", r.workerId, leaseKey)
 			err = lease.SetLastCounterIncrementNanos(time.Now().UnixNano())
 			if err != nil {
 				locker.Unlock()
 				return false, err
 			}
 		} else {
+			//l4g.Debug("Worker %s - Renewing Lease %s failed. removing ownership", r.workerId, leaseKey)
 			delete(r.ownedLeases, leaseKey)
 			delete(r.ownedLeasesMutex, leaseKey)
 		}
@@ -117,7 +126,7 @@ func (r *Renewer) renewLeaseInner(lease *KLease, renewEvenIfExpired bool) (bool,
 func (r *Renewer) GetCurrentlyHeldLeases() map[string]*KLease {
 	result := map[string]*KLease{}
 	now := time.Now().UnixNano()
-
+	//l4g.Debug("Worker %s - We have %d owned leases", r.workerId, len(r.ownedLeases))
 	for leaseKey := range r.ownedLeases {
 		copyLease := r.getCopyOfHeldLease(leaseKey, now)
 		if copyLease != nil {
@@ -163,7 +172,7 @@ func (r *Renewer) UpdateLease(lease *KLease, concurrencyToken *uuid.UUID) (bool,
 	} else {
 		return false, nil
 	}
-
+	//l4g.Debug("Worker %s - Updating Lease %s", r.workerId, leaseKey)
 	//If the passed-in concurrency token doesn't match the concurrency token of the authoritative lease, it means
 	//the lease was lost and regained between when the caller acquired his concurrency token and when the caller
 	//called update.
@@ -216,9 +225,10 @@ func (r *Renewer) UpdateLease(lease *KLease, concurrencyToken *uuid.UUID) (bool,
 }
 
 func (r *Renewer) AddLeasesToRenew(newLeases []*KLease) error {
-
+	//l4g.Debug("Worker %s - Adding %d leases to renew", r.workerId, len(newLeases))
 	for _, lease := range newLeases {
 		if lease.GetLastCounterIncrementNanos() == 0 {
+			//l4g.Debug("Worker %s - Lease %s did not have counter increment nanos", r.workerId, lease.GetLeaseKey())
 			continue
 		}
 
@@ -242,6 +252,7 @@ func (r *Renewer) ClearCurentHeldLeases() {
 
 func (r *Renewer) DropLease(lease *KLease) {
 	if _, ok := r.ownedLeases[lease.GetLeaseKey()]; ok {
+		//l4g.Debug("Worker %s - Dropping Lease %s", r.workerId, lease.GetLeaseKey())
 		delete(r.ownedLeases, lease.GetLeaseKey())
 		delete(r.ownedLeasesMutex, lease.GetLeaseKey())
 	}
@@ -254,7 +265,7 @@ func (r *Renewer) Init() error {
 	}
 	myLeases := []*KLease{}
 	renewEvenIfExpired := true
-
+	//l4g.Debug("Worker %s - Initializing my Leases", r.workerId)
 	for _, lease := range leases {
 		if r.workerId == lease.GetLeaseOwner() {
 			// Okay to renew even if lease is expired, because we start with an empty list and we add the lease to

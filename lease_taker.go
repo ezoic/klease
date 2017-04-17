@@ -4,6 +4,8 @@ import (
 	"math"
 	"math/rand"
 	"time"
+
+	l4g "github.com/ezoic/log4go"
 )
 
 const takeRetries = 3
@@ -30,6 +32,7 @@ func NewKLeaseTaker(manager *Manager, workerId string, leaseDurationNanos int64)
 		leaseDurationNanos:     leaseDurationNanos,
 		maxLeasesForWorker:     math.MaxInt64,
 		maxLeasesToStealAtOnce: 1,
+		allLeases:              map[string]*KLease{},
 	}
 }
 
@@ -64,7 +67,7 @@ func (t *Taker) WithMaxLeasesToStealAtOneTime(maxLeasesToStealAtOnce int64) *Tak
 //3) For load balancing purposes, you may violate rules 1 and 2 for EXACTLY ONE lease per call of takeLeases().
 func (t *Taker) TakeLeases() map[string]*KLease {
 	takenLeases := map[string]*KLease{}
-	success := false
+
 	var lastErr error
 
 	//dynamodb.ErrCodeProvisionedThroughputExceededException
@@ -73,8 +76,6 @@ func (t *Taker) TakeLeases() map[string]*KLease {
 		err := t.updateAllLeases()
 		if err != nil {
 			lastErr = err
-		} else {
-			success = true
 		}
 	}
 
@@ -83,18 +84,19 @@ func (t *Taker) TakeLeases() map[string]*KLease {
 	}
 
 	expiredLeases := t.getExpiredLeases()
+	//l4g.Debug("Worker %s - Expired Leases %d", t.workerId, len(expiredLeases))
 	leasesToTake := t.computeLeasesToTake(expiredLeases)
 	untakenLeaseKeys := []string{}
 
 	for _, lease := range leasesToTake {
 		leaseKey := lease.GetLeaseKey()
 
-		success = false
 		for i := 1; i <= takeRetries; i++ {
 			isTaken, err := t.leaseManager.TakeLease(lease, t.workerId)
 			if err != nil {
-				//add log later. right now it will just retry up to takeRetries
+				l4g.Error("Worker %s - Error taking leases: %s", t.workerId, err.Error())
 			} else {
+				//l4g.Debug("Worker %s - Did we succeed in taking lease %s? : %t", t.workerId, leaseKey, isTaken)
 				if isTaken {
 					lease.SetLastCounterIncrementNanos(time.Now().UnixNano())
 					takenLeases[leaseKey] = lease
@@ -102,15 +104,10 @@ func (t *Taker) TakeLeases() map[string]*KLease {
 					untakenLeaseKeys = append(untakenLeaseKeys, leaseKey)
 				}
 				//didn't error so don't need to try again
-				success = true
 				break
 			}
 		}
 
-	}
-
-	if success {
-		//use success for logging later. this is here as a placeholder so go doesn't complain that its not used
 	}
 
 	return takenLeases
@@ -180,6 +177,7 @@ func (t *Taker) getExpiredLeases() []*KLease {
 	expiredLeases := []*KLease{}
 	for _, lease := range t.allLeases {
 		if lease.IsExpired(t.leaseDurationNanos, t.lastScanTimeNanos) {
+			//l4g.Debug("Worker %s - Found Expired Lease %s", t.workerId, lease.GetLeaseKey())
 			expiredLeases = append(expiredLeases, lease)
 		}
 	}
@@ -193,6 +191,8 @@ func (t *Taker) computeLeasesToTake(expiredLeases []*KLease) []*KLease {
 	var target, numLeases, numWorkers int64
 	numLeases = int64(len(t.allLeases))
 	numWorkers = int64(len(leaseCounts))
+
+	//l4g.Debug("Worker %s - NumWorkers: %d", t.workerId, numWorkers)
 
 	//no leases, no take-y
 	if numLeases <= 0 {
@@ -215,7 +215,7 @@ func (t *Taker) computeLeasesToTake(expiredLeases []*KLease) []*KLease {
 			leaseSpillover = target - t.maxLeasesForWorker
 			target = t.maxLeasesForWorker
 			if leaseSpillover > 0 {
-				//log
+				//l4g.Debug("Worker %s - Spillover: %d", t.workerId, leaseSpillover)
 			}
 		}
 	}
@@ -223,6 +223,8 @@ func (t *Taker) computeLeasesToTake(expiredLeases []*KLease) []*KLease {
 	myCount := leaseCounts[t.workerId]
 	numLeasesToReachTarget := target - myCount
 
+	//l4g.Debug("Worker %s - Target: %d", t.workerId, target)
+	//l4g.Debug("Worker %s - numLeasesToReachTarget: %d", t.workerId, numLeasesToReachTarget)
 	if numLeasesToReachTarget <= 0 {
 		// If we don't need anything, return empty.
 		return leasesToTake
@@ -234,6 +236,7 @@ func (t *Taker) computeLeasesToTake(expiredLeases []*KLease) []*KLease {
 	originalExpiredLeasesSize := len(expiredLeases)
 
 	if originalExpiredLeasesSize > 0 {
+		//l4g.Debug("Worker %s - Going to try to take free leases", t.workerId)
 		for numLeasesToReachTarget > 0 && len(expiredLeases) > 0 {
 			//fancy pants pop from slice
 			var eLease *KLease
@@ -243,11 +246,13 @@ func (t *Taker) computeLeasesToTake(expiredLeases []*KLease) []*KLease {
 		}
 	} else {
 		// If there are no expired leases and we need a lease, consider stealing.
+		//l4g.Debug("Worker %s - Going to try to steal leases", t.workerId)
 		leasesToSteal := t.chooseLeasesToSteal(leaseCounts, numLeasesToReachTarget, target)
 		for _, leaseToSteal := range leasesToSteal {
 			leasesToTake = append(leasesToTake, leaseToSteal)
 		}
 	}
+	//l4g.Debug("Worker %s - Leases I'm going to try to take: %d", t.workerId, len(leasesToTake))
 	return leasesToTake
 }
 
@@ -311,9 +316,10 @@ func (t *Taker) chooseLeasesToSteal(leaseCounts map[string]int64, needed, target
 //Count leases by host. Always includes myself, but otherwise only includes hosts that are currently holding leases.
 func (t *Taker) computeLeaseCounts(expiredLeases []*KLease) map[string]int64 {
 	leaseCounts := map[string]int64{}
-	// Compute the number of leases per worker by looking through allLeases and ignoring leases that have expired.
+	// Compute the number of leases per worker by looking through allLeases and ignoring leases that have expired or have no owner.
 	for _, lease := range t.allLeases {
-		if !t.contains(lease, expiredLeases) {
+		//l4g.Debug("Worker %s - Checking Lease %s and its expired state is %t", t.workerId, lease.GetLeaseKey(), t.contains(lease, expiredLeases))
+		if !t.contains(lease, expiredLeases) && lease.GetLeaseOwner() != "" {
 			leaseOwner := lease.GetLeaseOwner()
 			leaseCounts[leaseOwner]++
 		}

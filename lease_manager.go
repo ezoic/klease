@@ -47,13 +47,13 @@ func newLeaseManagerForTests(table string, client *dynamodb.DynamoDB, serialzer 
 }
 
 func (k *Manager) CreateLeaseTableIfNotExists(readCapacity, writeCapacity int64) error {
-
-	var request *dynamodb.CreateTableInput
+	//l4g.Debug("makin table: %s", k.table)
+	request := &dynamodb.CreateTableInput{}
 	request.SetTableName(k.table)
 	request.SetKeySchema(k.serialzer.GetKeySchema())
 	request.SetAttributeDefinitions(k.serialzer.GetAttributeDefinitions())
 
-	var throughput *dynamodb.ProvisionedThroughput
+	throughput := &dynamodb.ProvisionedThroughput{}
 	throughput.SetReadCapacityUnits(readCapacity)
 	throughput.SetWriteCapacityUnits(writeCapacity)
 	request.SetProvisionedThroughput(throughput)
@@ -77,10 +77,10 @@ func (k *Manager) LeaseTableExists() (bool, error) {
 }
 
 func (k *Manager) tableStatus() (string, error) {
-	var request *dynamodb.DescribeTableInput
+	request := &dynamodb.DescribeTableInput{}
 	request = request.SetTableName(k.table)
 
-	var result *dynamodb.DescribeTableOutput
+	result := &dynamodb.DescribeTableOutput{}
 	var err error
 	result, err = k.client.DescribeTable(request)
 	if err != nil {
@@ -129,7 +129,7 @@ func (k *Manager) IsLeaseTableEmpty() (bool, error) {
 //internal lease lister
 func (k *Manager) list(limit int64) ([]*KLease, error) {
 
-	var request *dynamodb.ScanInput
+	request := &dynamodb.ScanInput{}
 	request.SetTableName(k.table)
 	if limit >= 0 {
 		request.SetLimit(limit)
@@ -169,9 +169,9 @@ func (k *Manager) CreateLeaseIfNotExists(lease *KLease) (bool, error) {
 		return false, errors.New("lease cannot be nil")
 	}
 
-	var request *dynamodb.PutItemInput
+	request := &dynamodb.PutItemInput{}
 	request.SetTableName(k.table)
-	request.SetItem(k.serialzer.ToDynamoRecord(*lease))
+	request.SetItem(k.serialzer.ToDynamoRecord(lease))
 	request.SetExpected(k.serialzer.GetDynamoNonexistantExpectation())
 
 	_, err := k.client.PutItem(request)
@@ -192,7 +192,7 @@ func (k *Manager) GetLease(leaseKey string) (*KLease, error) {
 		return nil, errors.New("leaseKey cannot be empty")
 	}
 
-	var request *dynamodb.GetItemInput
+	request := &dynamodb.GetItemInput{}
 	request.SetTableName(k.table)
 	request.SetKey(k.serialzer.GetDynamoHashKey(leaseKey))
 	request.SetConsistentRead(k.consistentReads)
@@ -215,7 +215,7 @@ func (k *Manager) RenewLease(lease *KLease) (bool, error) {
 		return false, errors.New("lease cannot be nil")
 	}
 
-	var request *dynamodb.UpdateItemInput
+	request := &dynamodb.UpdateItemInput{}
 	request.SetTableName(k.table)
 	request.SetKey(k.serialzer.GetDynamoHashKey(lease.GetLeaseKey()))
 	request.SetExpected(k.serialzer.GetDynamoLeaseCounterExpectation(lease.GetLeaseCounter()))
@@ -241,7 +241,7 @@ func (k *Manager) TakeLease(lease *KLease, owner string) (bool, error) {
 		return false, errors.New("owner cannot be empty")
 	}
 
-	var request *dynamodb.UpdateItemInput
+	request := &dynamodb.UpdateItemInput{}
 	request.SetTableName(k.table)
 	request.SetKey(k.serialzer.GetDynamoHashKey(lease.GetLeaseKey()))
 	request.SetExpected(k.serialzer.GetDynamoLeaseCounterExpectation(lease.GetLeaseCounter()))
@@ -278,7 +278,7 @@ func (k *Manager) EvictLease(lease *KLease) (bool, error) {
 		return false, errors.New("lease cannot be nil")
 	}
 
-	var request *dynamodb.UpdateItemInput
+	request := &dynamodb.UpdateItemInput{}
 	request.SetTableName(k.table)
 	request.SetKey(k.serialzer.GetDynamoHashKey(lease.GetLeaseKey()))
 	request.SetExpected(k.serialzer.GetDynamoLeaseOwnerExpectation(lease.GetLeaseOwner()))
@@ -311,7 +311,7 @@ func (k *Manager) DeleteAll() error {
 		return err
 	}
 	for _, lease := range allLeases {
-		var request *dynamodb.DeleteItemInput
+		request := &dynamodb.DeleteItemInput{}
 		request.SetTableName(k.table)
 		request.SetKey(k.serialzer.GetDynamoHashKey(lease.GetLeaseKey()))
 
@@ -328,7 +328,7 @@ func (k *Manager) DeleteLease(lease *KLease) error {
 		return errors.New("lease cannot be nil")
 	}
 
-	var request *dynamodb.DeleteItemInput
+	request := &dynamodb.DeleteItemInput{}
 	request.SetTableName(k.table)
 	request.SetKey(k.serialzer.GetDynamoHashKey(lease.GetLeaseKey()))
 
@@ -343,7 +343,7 @@ func (k *Manager) UpdateLease(lease *KLease) (bool, error) {
 		return false, errors.New("lease cannot be nil")
 	}
 
-	var request *dynamodb.UpdateItemInput
+	request := &dynamodb.UpdateItemInput{}
 	request.SetTableName(k.table)
 	request.SetKey(k.serialzer.GetDynamoHashKey(lease.GetLeaseKey()))
 	request.SetExpected(k.serialzer.GetDynamoLeaseCounterExpectation(lease.GetLeaseCounter()))

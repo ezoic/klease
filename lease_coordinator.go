@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	l4g "github.com/ezoic/log4go"
 	uuid "github.com/nu7hatch/gouuid"
 )
 
@@ -36,11 +37,22 @@ const DefaultMaxLeasesToStealAtOneTime = 1
 //epsilonNanos Allows for some variance when calculating lease expirations
 func NewLeaseCoordinator(leaseManager *Manager, workerId string, leaseDurationMillis, epsilonMillis int64) *Coordinator {
 	return &Coordinator{
-		renewer: NewKLeaseRenewer(leaseManager, workerId, leaseDurationMillis),
-		taker:   NewKLeaseTaker(leaseManager, workerId, leaseDurationMillis).WithMaxLeasesForWorker(DefaultMaxLeasesForWorker).WithMaxLeasesToStealAtOneTime(DefaultMaxLeasesToStealAtOneTime),
+		renewer: NewKLeaseRenewer(leaseManager, workerId, leaseDurationMillis*1000000),
+		taker:   NewKLeaseTaker(leaseManager, workerId, leaseDurationMillis*1000000).WithMaxLeasesForWorker(DefaultMaxLeasesForWorker).WithMaxLeasesToStealAtOneTime(DefaultMaxLeasesToStealAtOneTime),
 		renewerIntervalMillis: leaseDurationMillis/3 - epsilonMillis,
 		takerIntervalMillis:   (leaseDurationMillis + epsilonMillis) * 2,
 		shutdownLock:          &sync.Mutex{},
+	}
+}
+
+func newLeaseCoordinatorForTest(leaseManager *Manager, workerId string, leaseDurationMillis, epsilonMillis int64) *Coordinator {
+	return &Coordinator{
+		renewer: NewKLeaseRenewer(leaseManager, workerId, leaseDurationMillis*1000000),
+		taker:   NewKLeaseTaker(leaseManager, workerId, leaseDurationMillis*1000000).WithMaxLeasesForWorker(DefaultMaxLeasesForWorker).WithMaxLeasesToStealAtOneTime(DefaultMaxLeasesToStealAtOneTime),
+		renewerIntervalMillis: leaseDurationMillis/3 - epsilonMillis,
+		takerIntervalMillis:   (leaseDurationMillis + epsilonMillis) * 2,
+		shutdownLock:          &sync.Mutex{},
+		running:               true,
 	}
 }
 
@@ -60,7 +72,7 @@ func (c *Coordinator) RunTaker() {
 	if c.running {
 		err := c.renewer.AddLeasesToRenew(takenLeasesSlice)
 		if err != nil {
-			//log here
+			l4g.Error("Worker %s - Error adding leases to renew: %s", c.taker.GetWorkerId(), err.Error())
 		}
 	}
 	c.shutdownLock.Unlock()
@@ -70,7 +82,7 @@ func (c *Coordinator) RunTaker() {
 func (c *Coordinator) RunRenewer() error {
 	err := c.renewer.RenewLeases()
 	if err != nil {
-		//log here
+		l4g.Error("Worker %s - Error renewing leases: %s", c.taker.GetWorkerId(), err.Error())
 	}
 	return err
 }
