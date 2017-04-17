@@ -1,25 +1,28 @@
 package klease
 
-import "github.com/aws/aws-sdk-go/service/dynamodb"
-import "time"
-import "errors"
+import (
+	"errors"
+	"time"
 
-//KLeaseManager supports basic CRUD operations for Leases
-type KLeaseManager struct {
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+)
+
+//Manager supports basic CRUD operations for Leases
+type Manager struct {
 	table           string
 	client          *dynamodb.DynamoDB
 	serialzer       *DynamoSerializer
 	consistentReads bool //should never be true except in some tests
 }
 
-//NewKLeaseManager creates and returns a new manager
-func NewKLeaseManager(table string, client *dynamodb.DynamoDB, serialzer *DynamoSerializer) KLeaseManager {
+//NewLeaseManager creates and returns a new manager
+func NewLeaseManager(table string, client *dynamodb.DynamoDB, serialzer *DynamoSerializer) *Manager {
 
 	if serialzer == nil {
 		serialzer = NewDynamoSerializer()
 	}
 
-	manager := KLeaseManager{
+	manager := &Manager{
 		table:           table,
 		client:          client,
 		serialzer:       serialzer,
@@ -28,13 +31,13 @@ func NewKLeaseManager(table string, client *dynamodb.DynamoDB, serialzer *Dynamo
 	return manager
 }
 
-func newKLeaseManagerForTests(table string, client *dynamodb.DynamoDB, serialzer *DynamoSerializer, consistentReads bool) KLeaseManager {
+func newLeaseManagerForTests(table string, client *dynamodb.DynamoDB, serialzer *DynamoSerializer, consistentReads bool) *Manager {
 
 	if serialzer == nil {
 		serialzer = NewDynamoSerializer()
 	}
 
-	manager := KLeaseManager{
+	manager := &Manager{
 		table:           table,
 		client:          client,
 		serialzer:       serialzer,
@@ -43,7 +46,7 @@ func newKLeaseManagerForTests(table string, client *dynamodb.DynamoDB, serialzer
 	return manager
 }
 
-func (k *KLeaseManager) CreateLeaseTableIfNotExists(readCapacity, writeCapacity int64) error {
+func (k *Manager) CreateLeaseTableIfNotExists(readCapacity, writeCapacity int64) error {
 
 	var request *dynamodb.CreateTableInput
 	request.SetTableName(k.table)
@@ -65,7 +68,7 @@ func (k *KLeaseManager) CreateLeaseTableIfNotExists(readCapacity, writeCapacity 
 	return nil
 }
 
-func (k *KLeaseManager) LeaseTableExists() (bool, error) {
+func (k *Manager) LeaseTableExists() (bool, error) {
 	tableStatus, err := k.tableStatus()
 	if err != nil {
 		return false, err
@@ -73,7 +76,7 @@ func (k *KLeaseManager) LeaseTableExists() (bool, error) {
 	return tableStatus == dynamodb.TableStatusActive, nil
 }
 
-func (k *KLeaseManager) tableStatus() (string, error) {
+func (k *Manager) tableStatus() (string, error) {
 	var request *dynamodb.DescribeTableInput
 	request = request.SetTableName(k.table)
 
@@ -87,7 +90,7 @@ func (k *KLeaseManager) tableStatus() (string, error) {
 	return *result.Table.TableStatus, nil
 }
 
-func (k *KLeaseManager) WaitUntilLeaseTableExists(secondsBetweenPulls, timeoutSeconds int64) (bool, error) {
+func (k *Manager) WaitUntilLeaseTableExists(secondsBetweenPulls, timeoutSeconds int64) (bool, error) {
 	secondsLeft := time.Duration(timeoutSeconds)
 	durationBetweenPulls := time.Duration(secondsBetweenPulls)
 	for {
@@ -111,11 +114,11 @@ func (k *KLeaseManager) WaitUntilLeaseTableExists(secondsBetweenPulls, timeoutSe
 
 }
 
-func (k *KLeaseManager) ListLeases() ([]*KLease, error) {
+func (k *Manager) ListLeases() ([]*KLease, error) {
 	return k.list(-1)
 }
 
-func (k *KLeaseManager) IsLeaseTableEmpty() (bool, error) {
+func (k *Manager) IsLeaseTableEmpty() (bool, error) {
 	leases, err := k.list(1)
 	if err != nil {
 		return true, err
@@ -124,7 +127,7 @@ func (k *KLeaseManager) IsLeaseTableEmpty() (bool, error) {
 }
 
 //internal lease lister
-func (k *KLeaseManager) list(limit int64) ([]*KLease, error) {
+func (k *Manager) list(limit int64) ([]*KLease, error) {
 
 	var request *dynamodb.ScanInput
 	request.SetTableName(k.table)
@@ -161,7 +164,7 @@ func (k *KLeaseManager) list(limit int64) ([]*KLease, error) {
 	return result, nil
 }
 
-func (k *KLeaseManager) CreateLeaseIfNotExists(lease *KLease) (bool, error) {
+func (k *Manager) CreateLeaseIfNotExists(lease *KLease) (bool, error) {
 	if lease == nil {
 		return false, errors.New("lease cannot be nil")
 	}
@@ -183,7 +186,7 @@ func (k *KLeaseManager) CreateLeaseIfNotExists(lease *KLease) (bool, error) {
 	return true, nil
 }
 
-func (k *KLeaseManager) GetLease(leaseKey string) (*KLease, error) {
+func (k *Manager) GetLease(leaseKey string) (*KLease, error) {
 
 	if leaseKey == "" {
 		return nil, errors.New("leaseKey cannot be empty")
@@ -206,7 +209,7 @@ func (k *KLeaseManager) GetLease(leaseKey string) (*KLease, error) {
 	return k.serialzer.FromDynamoRecord(result.Item), nil
 }
 
-func (k *KLeaseManager) RenewLease(lease *KLease) (bool, error) {
+func (k *Manager) RenewLease(lease *KLease) (bool, error) {
 
 	if lease == nil {
 		return false, errors.New("lease cannot be nil")
@@ -230,7 +233,7 @@ func (k *KLeaseManager) RenewLease(lease *KLease) (bool, error) {
 	return true, nil
 }
 
-func (k *KLeaseManager) TakeLease(lease *KLease, owner string) (bool, error) {
+func (k *Manager) TakeLease(lease *KLease, owner string) (bool, error) {
 	if lease == nil {
 		return false, errors.New("lease cannot be nil")
 	}
@@ -270,7 +273,7 @@ func (k *KLeaseManager) TakeLease(lease *KLease, owner string) (bool, error) {
 
 }
 
-func (k *KLeaseManager) EvictLease(lease *KLease) (bool, error) {
+func (k *Manager) EvictLease(lease *KLease) (bool, error) {
 	if lease == nil {
 		return false, errors.New("lease cannot be nil")
 	}
@@ -302,7 +305,7 @@ func (k *KLeaseManager) EvictLease(lease *KLease) (bool, error) {
 	return true, nil
 }
 
-func (k *KLeaseManager) DeleteAll() error {
+func (k *Manager) DeleteAll() error {
 	allLeases, err := k.ListLeases()
 	if err != nil {
 		return err
@@ -320,7 +323,7 @@ func (k *KLeaseManager) DeleteAll() error {
 	return nil
 }
 
-func (k *KLeaseManager) DeleteLease(lease *KLease) error {
+func (k *Manager) DeleteLease(lease *KLease) error {
 	if lease == nil {
 		return errors.New("lease cannot be nil")
 	}
@@ -335,7 +338,7 @@ func (k *KLeaseManager) DeleteLease(lease *KLease) error {
 
 }
 
-func (k *KLeaseManager) UpdateLease(lease *KLease) (bool, error) {
+func (k *Manager) UpdateLease(lease *KLease) (bool, error) {
 	if lease == nil {
 		return false, errors.New("lease cannot be nil")
 	}
@@ -368,7 +371,7 @@ func (k *KLeaseManager) UpdateLease(lease *KLease) (bool, error) {
 
 }
 
-func (k *KLeaseManager) GetCheckpoint(shardId string) (*KCheckpoint, error) {
+func (k *Manager) GetCheckpoint(shardId string) (*KCheckpoint, error) {
 	lease, err := k.GetLease(shardId)
 	if err != nil {
 		return nil, err

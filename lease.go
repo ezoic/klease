@@ -4,7 +4,10 @@ import (
 	"crypto/md5"
 	"errors"
 	"io"
+	"reflect"
 	"strconv"
+
+	"github.com/nu7hatch/gouuid"
 )
 
 //KCheckpoint implements the Checkpont interface
@@ -15,25 +18,25 @@ type KCheckpoint struct {
 }
 
 // KLease contains data pertaining to a Lease. Distributed systems may use leases to partition work across a
-// fleet of workers. Each unit of work (identified by a leaseKey) has a corresponding Lease. Every worker will contend
+// fleet of workers. Each shard (identified by a leaseKey) has a corresponding Lease. Every worker will contend
 // for all leases - only one worker will successfully take each one. The worker should hold the lease until it is ready to stop
 // processing the corresponding unit of work, or until it fails. When the worker stops holding the lease, another worker will
 // take and hold the lease.
 type KLease struct {
 	checkpoint                   *KCheckpoint
 	ownerSwitchesSinceCheckpoint int64
-	parentShardIds               map[string]string
+	parentShardIds               map[string]string //might not be used
 
-	leaseKey     string
+	leaseKey     string //this is shard id
 	leaseOwner   string
 	leaseCounter int64
 
-	concurrencyToken          string
+	concurrencyToken          *uuid.UUID
 	lastCounterIncrementNanos int64
 }
 
 // NewKLeaseFromLease creates and returns a copy of other
-func NewKLeaseFromLease(other KLease) KLease {
+func NewKLeaseFromLease(other KLease) *KLease {
 	lease := KLease{
 		checkpoint:                   other.checkpoint,
 		ownerSwitchesSinceCheckpoint: other.ownerSwitchesSinceCheckpoint,
@@ -44,7 +47,16 @@ func NewKLeaseFromLease(other KLease) KLease {
 		concurrencyToken:             other.concurrencyToken,
 		lastCounterIncrementNanos:    other.lastCounterIncrementNanos,
 	}
-	return lease
+	return &lease
+}
+
+func NewKLease(leaseKey, leaseOwner string, checkpoint *KCheckpoint) *KLease {
+	lease := KLease{
+		checkpoint: checkpoint,
+		leaseKey:   leaseKey,
+		leaseOwner: leaseOwner,
+	}
+	return &lease
 }
 
 func (l *KLease) GetLeaseKey() string {
@@ -59,7 +71,7 @@ func (l *KLease) GetLeaseOwner() string {
 	return l.leaseOwner
 }
 
-func (l *KLease) GetConcurrencyToken() string {
+func (l *KLease) GetConcurrencyToken() *uuid.UUID {
 	return l.concurrencyToken
 }
 
@@ -107,9 +119,9 @@ func (l *KLease) SetLeaseOwner(leaseOwner string) error {
 	return nil
 }
 
-func (l *KLease) SetConcurrencyToken(concurrencyToken string) error {
-	if concurrencyToken == "" {
-		return errors.New("concurrencyToken Cannot be empty string")
+func (l *KLease) SetConcurrencyToken(concurrencyToken *uuid.UUID) error {
+	if concurrencyToken == nil {
+		return errors.New("concurrencyToken Cannot be nil")
 	}
 	l.concurrencyToken = concurrencyToken
 	return nil
@@ -137,7 +149,7 @@ func (l *KLease) SetParentShardIds(parentShardIds map[string]string) error {
 
 //Update updates this Lease's mutable, application-specific fields based on the passed-in lease object. Does not update
 //fields that are internal to the leasing library (leaseKey, leaseOwner, leaseCounter)
-func (l *KLease) Update(other KLease) {
+func (l *KLease) Update(other *KLease) {
 	l.SetOwnerSwitchesSinceCheckpoint(other.ownerSwitchesSinceCheckpoint)
 	l.SetCheckpoint(other.checkpoint)
 	l.SetParentShardIds(other.parentShardIds)
@@ -151,7 +163,17 @@ func (l *KLease) HashCode() string {
 	return string(h.Sum(nil)[:h.Size()])
 }
 
-//todo: do this properly later
-func (l *KLease) Equals(other KLease) bool {
-	return false
+//todo:  if parent shards end up not being needed
+func (l *KLease) Equals(other *KLease) bool {
+	if other == nil ||
+		l.leaseCounter != other.leaseCounter ||
+		l.leaseOwner != other.leaseOwner ||
+		l.leaseKey != other.leaseKey ||
+		l.checkpoint != other.checkpoint ||
+		l.ownerSwitchesSinceCheckpoint != other.ownerSwitchesSinceCheckpoint ||
+		reflect.DeepEqual(l.parentShardIds, other.parentShardIds) {
+		return false
+	}
+
+	return true
 }

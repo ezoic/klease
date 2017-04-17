@@ -1,7 +1,10 @@
 package klease
 
-import "github.com/aws/aws-sdk-go/service/dynamodb"
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+)
 
 type DynamoUtils struct{}
 

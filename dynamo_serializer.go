@@ -51,7 +51,7 @@ func (s *DynamoSerializer) FromDynamoRecord(record map[string]*dynamodb.Attribut
 	result.SetLeaseCounter(s.utils.SafeGetN(record, LeaseCounterKey))
 	result.SetOwnerSwitchesSinceCheckpoint(s.utils.SafeGetN(record, OwnerSwitchesKey))
 	//TODO if we need to add subsequence
-	result.SetCheckpoint(KCheckpoint{
+	result.SetCheckpoint(&KCheckpoint{
 		SequenceNumber: s.utils.SafeGetS(record, CheckpointSequenceNumberKey),
 	})
 
