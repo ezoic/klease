@@ -58,7 +58,6 @@ func newLeaseCoordinatorForTest(leaseManager *Manager, workerId string, leaseDur
 
 //RunTaker runs a single iteration of the lease taker - used by integration tests.
 func (c *Coordinator) RunTaker() {
-
 	takenLeases := c.taker.TakeLeases()
 
 	takenLeasesSlice := make([]*KLease, len(takenLeases))
@@ -149,6 +148,19 @@ func (c *Coordinator) GetAssignments() []*KLease {
 	return leasesSlice
 }
 
+//GetAssignedShardIds returns a list of shard ids I currently own
+func (c *Coordinator) GetAssignedShardIds() []string {
+	leases := c.renewer.GetCurrentlyHeldLeases()
+	leasesSlice := make([]string, len(leases))
+
+	idx := 0
+	for _, value := range leases {
+		leasesSlice[idx] = value.GetLeaseKey()
+		idx++
+	}
+	return leasesSlice
+}
+
 // GetCurrentlyHeldLease returns deep copy of currently held Lease for given key, or null if we don't hold the lease for that key
 func (c *Coordinator) GetCurrentlyHeldLease(leaseKey string) *KLease {
 	return c.renewer.GetCurrentlyHeldLease(leaseKey)
@@ -206,4 +218,11 @@ func (c *Coordinator) IsRunning() bool {
 //UpdateLease updates application specific lease values in DynamoDB
 func (c *Coordinator) UpdateLease(lease *KLease, concurrencyToken *uuid.UUID) (bool, error) {
 	return c.renewer.UpdateLease(lease, concurrencyToken)
+}
+
+//DeleteLease is a shortcut to delete the lease in DynamoDB and drop from ownership
+func (c *Coordinator) DeleteLease(leaseKey string) error {
+	lease := &KLease{leaseKey: leaseKey}
+	c.DropLease(lease)
+	return c.renewer.leaseManager.DeleteLease(lease)
 }
