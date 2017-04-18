@@ -118,6 +118,21 @@ func (k *Manager) ListLeases() ([]*KLease, error) {
 	return k.list(-1)
 }
 
+func (k *Manager) ListShards() ([]string, error) {
+	leases, err := k.list(-1)
+	if err != nil {
+		return []string{}, err
+	}
+	leasesSlice := make([]string, len(leases))
+
+	idx := 0
+	for _, value := range leases {
+		leasesSlice[idx] = value.GetLeaseKey()
+		idx++
+	}
+	return leasesSlice, nil
+}
+
 func (k *Manager) IsLeaseTableEmpty() (bool, error) {
 	leases, err := k.list(1)
 	if err != nil {
