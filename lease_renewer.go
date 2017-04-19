@@ -14,7 +14,7 @@ type Renewer struct {
 	ownedLeases        map[string]*KLease
 	workerId           string
 	leaseDurationNanos int64
-	ownedLeasesMutex   *sync.Mutex
+	ownedLeasesMutex   map[string]*sync.Mutex
 }
 
 type renewResult struct {
@@ -31,7 +31,7 @@ func NewKLeaseRenewer(leaseManager *Manager, workerId string, leaseDurationNanos
 		workerId:           workerId,
 		leaseDurationNanos: leaseDurationNanos,
 		ownedLeases:        map[string]*KLease{},
-		ownedLeasesMutex:   &sync.Mutex{},
+		ownedLeasesMutex:   map[string]*sync.Mutex{},
 	}
 }
 
@@ -41,16 +41,7 @@ func (r *Renewer) RenewLeases() error {
 	var lastErr error
 	renewLeaseTasks := make(chan renewResult, len(r.ownedLeases))
 	sem := make(chan bool, MaxWorkersForRenewing)
-
-	r.ownedLeasesMutex.Lock()
-	firstPass := true
-	// from go spec on for loops: "The range expression is evaluated once before beginning the loop". So we only need to lock when first entering the loop
 	for _, lease := range r.ownedLeases {
-		if firstPass {
-			r.ownedLeasesMutex.Unlock()
-			firstPass = false
-		}
-
 		sem <- true
 		go r.renewLease(lease, renewLeaseTasks, sem)
 	}
@@ -89,16 +80,26 @@ func (r *Renewer) renewLeaseInner(lease *KLease, renewEvenIfExpired bool) (bool,
 	leaseKey := lease.GetLeaseKey()
 	renewedLease := false
 	//l4g.Debug("Worker %s - Renewing Lease %s", r.workerId, leaseKey)
+	var locker *sync.Mutex
+	if _, ok := r.ownedLeasesMutex[leaseKey]; ok {
+		locker = r.ownedLeasesMutex[leaseKey]
+	} else {
+		//this won't do much, but keeps us from having to check if it exists later
+		locker = &sync.Mutex{}
+	}
 
 	for i := 1; i <= RenewalRetries; i++ {
+		locker.Lock()
 		// Don't renew expired lease during regular renewals. getCopyOfHeldLease may have returned null
 		// triggering the application processing to treat this as a lost lease.
 		if renewEvenIfExpired || !lease.IsExpired(r.leaseDurationNanos, time.Now().UnixNano()) {
 			renewedLease, err = r.leaseManager.RenewLease(lease)
 			if err != nil {
 				if err.Error() == "ProvisionedThroughputExceededException" {
+					locker.Unlock()
 					continue
 				}
+				locker.Unlock()
 				return false, err
 			}
 		}
@@ -106,15 +107,15 @@ func (r *Renewer) renewLeaseInner(lease *KLease, renewEvenIfExpired bool) (bool,
 			//l4g.Debug("Worker %s - Lease %s renewed", r.workerId, leaseKey)
 			err = lease.SetLastCounterIncrementNanos(time.Now().UnixNano())
 			if err != nil {
-
+				locker.Unlock()
 				return false, err
 			}
 		} else {
 			//l4g.Debug("Worker %s - Renewing Lease %s failed. removing ownership", r.workerId, leaseKey)
-			r.ownedLeasesMutex.Lock()
 			delete(r.ownedLeases, leaseKey)
-			r.ownedLeasesMutex.Unlock()
+			delete(r.ownedLeasesMutex, leaseKey)
 		}
+		locker.Unlock()
 		break
 	}
 
@@ -126,15 +127,7 @@ func (r *Renewer) GetCurrentlyHeldLeases() map[string]*KLease {
 	result := map[string]*KLease{}
 	now := time.Now().UnixNano()
 	//l4g.Debug("Worker %s - We have %d owned leases", r.workerId, len(r.ownedLeases))
-	r.ownedLeasesMutex.Lock()
-	firstPass := true
-	// from go spec on for loops: "The range expression is evaluated once before beginning the loop". So we only need to lock when first entering the loop
 	for leaseKey := range r.ownedLeases {
-		if firstPass {
-			r.ownedLeasesMutex.Unlock()
-			firstPass = false
-		}
-
 		copyLease := r.getCopyOfHeldLease(leaseKey, now)
 		if copyLease != nil {
 			result[copyLease.GetLeaseKey()] = copyLease
@@ -151,15 +144,14 @@ func (r *Renewer) GetCurrentlyHeldLease(leaseKey string) *KLease {
 
 //getCopyOfHeldLease is an internal method to return a lease with a specific lease key only if we currently hold it.
 func (r *Renewer) getCopyOfHeldLease(leaseKey string, now int64) *KLease {
-	r.ownedLeasesMutex.Lock()
-	defer r.ownedLeasesMutex.Unlock()
-
 	if _, ok := r.ownedLeases[leaseKey]; !ok {
 		return nil
 	}
 
 	authoritativeLease := r.ownedLeases[leaseKey]
+	r.ownedLeasesMutex[leaseKey].Lock()
 	leaseCopy := *authoritativeLease
+	r.ownedLeasesMutex[leaseKey].Unlock()
 
 	if leaseCopy.IsExpired(r.leaseDurationNanos, now) {
 		return nil
@@ -175,14 +167,11 @@ func (r *Renewer) UpdateLease(lease *KLease, concurrencyToken *uuid.UUID) (bool,
 
 	leaseKey := lease.GetLeaseKey()
 	var authoritativeLease *KLease
-	r.ownedLeasesMutex.Lock()
 	if al, ok := r.ownedLeases[leaseKey]; ok {
 		authoritativeLease = al
 	} else {
-		r.ownedLeasesMutex.Unlock()
 		return false, nil
 	}
-	r.ownedLeasesMutex.Unlock()
 	//l4g.Debug("Worker %s - Updating Lease %s", r.workerId, leaseKey)
 	//If the passed-in concurrency token doesn't match the concurrency token of the authoritative lease, it means
 	//the lease was lost and regained between when the caller acquired his concurrency token and when the caller
@@ -190,6 +179,9 @@ func (r *Renewer) UpdateLease(lease *KLease, concurrencyToken *uuid.UUID) (bool,
 	if authoritativeLease.GetConcurrencyToken().String() != concurrencyToken.String() {
 		return false, nil
 	}
+
+	r.ownedLeasesMutex[leaseKey].Lock()
+	defer r.ownedLeasesMutex[leaseKey].Unlock()
 
 	authoritativeLease.Update(lease)
 	updatedLease, err := r.leaseManager.UpdateLease(authoritativeLease)
@@ -224,11 +216,10 @@ func (r *Renewer) UpdateLease(lease *KLease, concurrencyToken *uuid.UUID) (bool,
 		* Note that there is a subtlety here - Lease.equals() deliberately does not check the concurrency
 		* token, but it does check the lease counter, so this scheme works.
 		 */
-		r.ownedLeasesMutex.Lock()
 		if r.ownedLeases[leaseKey].Equals(authoritativeLease) {
 			delete(r.ownedLeases, leaseKey)
+			delete(r.ownedLeasesMutex, leaseKey)
 		}
-		r.ownedLeasesMutex.Unlock()
 	}
 	return updatedLease, nil
 }
@@ -247,27 +238,24 @@ func (r *Renewer) AddLeasesToRenew(newLeases []*KLease) error {
 			return err
 		}
 		authoritativeLease.SetConcurrencyToken(token)
-		r.ownedLeasesMutex.Lock()
 		r.ownedLeases[authoritativeLease.GetLeaseKey()] = &authoritativeLease
-		r.ownedLeasesMutex.Unlock()
+		r.ownedLeasesMutex[authoritativeLease.GetLeaseKey()] = &sync.Mutex{}
 	}
 
 	return nil
 }
 
 func (r *Renewer) ClearCurentHeldLeases() {
-	r.ownedLeasesMutex.Lock()
 	r.ownedLeases = map[string]*KLease{}
-	r.ownedLeasesMutex.Unlock()
+	r.ownedLeasesMutex = map[string]*sync.Mutex{}
 }
 
 func (r *Renewer) DropLease(lease *KLease) {
-	r.ownedLeasesMutex.Lock()
 	if _, ok := r.ownedLeases[lease.GetLeaseKey()]; ok {
 		//l4g.Debug("Worker %s - Dropping Lease %s", r.workerId, lease.GetLeaseKey())
 		delete(r.ownedLeases, lease.GetLeaseKey())
+		delete(r.ownedLeasesMutex, lease.GetLeaseKey())
 	}
-	r.ownedLeasesMutex.Unlock()
 }
 
 func (r *Renewer) Init() error {
