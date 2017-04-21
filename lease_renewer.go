@@ -43,6 +43,7 @@ func (r *Renewer) RenewLeases() error {
 	sem := make(chan bool, MaxWorkersForRenewing)
 
 	r.ownedLeasesMutex.Lock()
+	numOwnedLeases := len(r.ownedLeases)
 	firstPass := true
 	// from go spec on for loops: "The range expression is evaluated once before beginning the loop". So we only need to lock when first entering the loop
 	for _, lease := range r.ownedLeases {
@@ -60,7 +61,7 @@ func (r *Renewer) RenewLeases() error {
 		firstPass = false
 	}
 
-	for i := 0; i < len(r.ownedLeases); i++ {
+	for i := 0; i < numOwnedLeases; i++ {
 		result := <-renewLeaseTasks
 		if result.err != nil {
 			leasesInUnknownState++
