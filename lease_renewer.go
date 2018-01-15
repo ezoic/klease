@@ -39,26 +39,22 @@ func (r *Renewer) RenewLeases() error {
 	//l4g.Debug("Worker %s - Renewing Leases", r.workerId)
 	var lostLeases, leasesInUnknownState, keptLeases int64
 	var lastErr error
-	renewLeaseTasks := make(chan renewResult, len(r.ownedLeases))
+
 	sem := make(chan bool, MaxWorkersForRenewing)
 
 	r.ownedLeasesMutex.Lock()
-	numOwnedLeases := len(r.ownedLeases)
-	firstPass := true
-	// from go spec on for loops: "The range expression is evaluated once before beginning the loop". So we only need to lock when first entering the loop
+	renewLeaseTasks := make(chan renewResult, len(r.ownedLeases))
+	workList := make([]*KLease, 0, len(r.ownedLeases))
 	for _, lease := range r.ownedLeases {
-		if firstPass {
-			r.ownedLeasesMutex.Unlock()
-			firstPass = false
-		}
+		workList = append(workList, lease)
+	}
+	r.ownedLeasesMutex.Unlock()
 
+	numOwnedLeases := len(workList)
+	// from go spec on for loops: "The range expression is evaluated once before beginning the loop". So we only need to lock when first entering the loop
+	for _, lease := range workList {
 		sem <- true
 		go r.renewLease(lease, renewLeaseTasks, sem)
-	}
-
-	if firstPass {
-		r.ownedLeasesMutex.Unlock()
-		firstPass = false
 	}
 
 	for i := 0; i < numOwnedLeases; i++ {
@@ -133,23 +129,18 @@ func (r *Renewer) GetCurrentlyHeldLeases() map[string]*KLease {
 	now := time.Now().UnixNano()
 	//l4g.Debug("Worker %s - We have %d owned leases", r.workerId, len(r.ownedLeases))
 	r.ownedLeasesMutex.Lock()
-	firstPass := true
-	// from go spec on for loops: "The range expression is evaluated once before beginning the loop". So we only need to lock when first entering the loop
+	workList := make([]string, 0, len(r.ownedLeases))
 	for leaseKey := range r.ownedLeases {
-		if firstPass {
-			r.ownedLeasesMutex.Unlock()
-			firstPass = false
-		}
+		workList = append(workList, leaseKey)
+	}
+	r.ownedLeasesMutex.Unlock()
 
+	// from go spec on for loops: "The range expression is evaluated once before beginning the loop". So we only need to lock when first entering the loop
+	for _, leaseKey := range workList {
 		copyLease := r.getCopyOfHeldLease(leaseKey, now)
 		if copyLease != nil {
 			result[copyLease.GetLeaseKey()] = copyLease
 		}
-	}
-
-	if firstPass {
-		r.ownedLeasesMutex.Unlock()
-		firstPass = false
 	}
 
 	return result
