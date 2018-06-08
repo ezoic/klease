@@ -56,6 +56,7 @@ func (r *Renewer) RenewLeases() error {
 		sem <- true
 		go r.renewLease(lease, renewLeaseTasks, sem)
 	}
+	close(sem)
 
 	for i := 0; i < numOwnedLeases; i++ {
 		result := <-renewLeaseTasks
