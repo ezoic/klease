@@ -16,7 +16,7 @@ func TestNewKLeaseFromLease(t *testing.T) {
 		args args
 		want *KLease
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -38,7 +38,7 @@ func TestNewKLease(t *testing.T) {
 		args args
 		want *KLease
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -55,7 +55,7 @@ func TestKLease_GetLeaseKey(t *testing.T) {
 		l    *KLease
 		want string
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -72,7 +72,7 @@ func TestKLease_GetLeaseCounter(t *testing.T) {
 		l    *KLease
 		want int64
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -89,7 +89,7 @@ func TestKLease_GetLeaseOwner(t *testing.T) {
 		l    *KLease
 		want string
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -106,7 +106,7 @@ func TestKLease_GetConcurrencyToken(t *testing.T) {
 		l    *KLease
 		want *uuid.UUID
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -123,7 +123,7 @@ func TestKLease_GetLastCounterIncrementNanos(t *testing.T) {
 		l    *KLease
 		want int64
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -140,7 +140,7 @@ func TestKLease_GetCheckpoint(t *testing.T) {
 		l    *KLease
 		want *KCheckpoint
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -157,7 +157,7 @@ func TestKLease_GetOwnerSwitchesSinceCheckpoint(t *testing.T) {
 		l    *KLease
 		want int64
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -168,22 +168,22 @@ func TestKLease_GetOwnerSwitchesSinceCheckpoint(t *testing.T) {
 	}
 }
 
-func TestKLease_GetParentShardIds(t *testing.T) {
-	tests := []struct {
-		name string
-		l    *KLease
-		want map[string]string
-	}{
-	// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.l.GetParentShardIds(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("KLease.GetParentShardIds() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+// func TestKLease_GetParentShardIds(t *testing.T) {
+// 	tests := []struct {
+// 		name string
+// 		l    *KLease
+// 		want map[string]string
+// 	}{
+// 	// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			if got := tt.l.GetParentShardIds(); !reflect.DeepEqual(got, tt.want) {
+// 				t.Errorf("KLease.GetParentShardIds() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }
 
 func TestKLease_IsExpired(t *testing.T) {
 	type args struct {
@@ -196,7 +196,7 @@ func TestKLease_IsExpired(t *testing.T) {
 		args args
 		want bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -217,7 +217,7 @@ func TestKLease_SetLeaseKey(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -238,7 +238,7 @@ func TestKLease_SetLeaseCounter(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -259,7 +259,7 @@ func TestKLease_SetLeaseOwner(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -280,7 +280,7 @@ func TestKLease_SetConcurrencyToken(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -301,7 +301,7 @@ func TestKLease_SetLastCounterIncrementNanos(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -322,7 +322,7 @@ func TestKLease_SetCheckpoint(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -343,7 +343,7 @@ func TestKLease_SetOwnerSwitchesSinceCheckpoint(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -354,26 +354,26 @@ func TestKLease_SetOwnerSwitchesSinceCheckpoint(t *testing.T) {
 	}
 }
 
-func TestKLease_SetParentShardIds(t *testing.T) {
-	type args struct {
-		parentShardIds map[string]string
-	}
-	tests := []struct {
-		name    string
-		l       *KLease
-		args    args
-		wantErr bool
-	}{
-	// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.l.SetParentShardIds(tt.args.parentShardIds); (err != nil) != tt.wantErr {
-				t.Errorf("KLease.SetParentShardIds() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
+// func TestKLease_SetParentShardIds(t *testing.T) {
+// 	type args struct {
+// 		parentShardIds map[string]string
+// 	}
+// 	tests := []struct {
+// 		name    string
+// 		l       *KLease
+// 		args    args
+// 		wantErr bool
+// 	}{
+// 		// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			if err := tt.l.SetParentShardIds(tt.args.parentShardIds); (err != nil) != tt.wantErr {
+// 				t.Errorf("KLease.SetParentShardIds() error = %v, wantErr %v", err, tt.wantErr)
+// 			}
+// 		})
+// 	}
+// }
 
 func TestKLease_Update(t *testing.T) {
 	type args struct {
@@ -384,7 +384,7 @@ func TestKLease_Update(t *testing.T) {
 		l    *KLease
 		args args
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -399,7 +399,7 @@ func TestKLease_HashCode(t *testing.T) {
 		l    *KLease
 		want string
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -420,7 +420,7 @@ func TestKLease_Equals(t *testing.T) {
 		args args
 		want bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

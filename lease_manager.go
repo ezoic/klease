@@ -2,6 +2,7 @@ package klease
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -60,7 +61,7 @@ func (k *Manager) CreateLeaseTableIfNotExists(readCapacity, writeCapacity int64)
 
 	_, err := k.client.CreateTable(request)
 	if err != nil {
-		if err.Error() != dynamodb.ErrCodeResourceInUseException {
+		if strings.Contains(err.Error(), dynamodb.ErrCodeResourceInUseException) == false {
 			return err
 		}
 	}

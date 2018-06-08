@@ -40,7 +40,7 @@ func (r *Renewer) RenewLeases() error {
 	var lostLeases, leasesInUnknownState, keptLeases int64
 	var lastErr error
 
-	sem := make(chan bool, MaxWorkersForRenewing)
+	sem := make(chan bool, len(r.ownedLeases))
 
 	r.ownedLeasesMutex.Lock()
 	renewLeaseTasks := make(chan renewResult, len(r.ownedLeases))

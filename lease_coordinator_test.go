@@ -21,10 +21,26 @@ func TestCoordinator_RunTaker(t *testing.T) {
 	}))
 	dDB := dynamodb.New(sess)
 	manager := NewLeaseManager("testLease", dDB, NewDynamoSerializer())
-	manager.DeleteAll()
-	manager.CreateLeaseIfNotExists(NewKLease("shard1", "", nil))
-	manager.CreateLeaseIfNotExists(NewKLease("shard2", "", nil))
-	manager.CreateLeaseIfNotExists(NewKLease("shard3", "", nil))
+	err := manager.CreateLeaseTableIfNotExists(1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = manager.DeleteAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = manager.CreateLeaseIfNotExists(NewKLease("shard1", "", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = manager.CreateLeaseIfNotExists(NewKLease("shard2", "", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = manager.CreateLeaseIfNotExists(NewKLease("shard3", "", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		name string
@@ -53,7 +69,7 @@ func TestCoordinator_RunRenewer(t *testing.T) {
 		c       *Coordinator
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -70,7 +86,7 @@ func TestCoordinator_GetAssignments(t *testing.T) {
 		c    *Coordinator
 		want []*KLease
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -91,7 +107,7 @@ func TestCoordinator_GetCurrentlyHeldLease(t *testing.T) {
 		args args
 		want *KLease
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,7 +124,7 @@ func TestCoordinator_GetWorkerId(t *testing.T) {
 		c    *Coordinator
 		want string
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -124,7 +140,7 @@ func TestCoordinator_Stop(t *testing.T) {
 		name string
 		c    *Coordinator
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -138,7 +154,7 @@ func TestCoordinator_StopLeaseTaker(t *testing.T) {
 		name string
 		c    *Coordinator
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -156,7 +172,7 @@ func TestCoordinator_DropLease(t *testing.T) {
 		c    *Coordinator
 		args args
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -171,7 +187,7 @@ func TestCoordinator_IsRunning(t *testing.T) {
 		c    *Coordinator
 		want bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -194,7 +210,7 @@ func TestCoordinator_UpdateLease(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
