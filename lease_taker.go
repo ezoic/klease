@@ -98,7 +98,7 @@ func (t *Taker) TakeLeases() map[string]*KLease {
 			} else {
 				//l4g.Debug("Worker %s - Did we succeed in taking lease %s? : %t", t.workerId, leaseKey, isTaken)
 				if isTaken {
-					l4g.Info("Worker %s - Stole lease in table %s, key %s", t.workerId, t.leaseManager.table, leaseKey)
+					l4g.Info("Worker %s - taking lease (%s) in table %s, key %s", t.workerId, lease.status, t.leaseManager.table, leaseKey)
 					lease.SetLastCounterIncrementNanos(time.Now().UnixNano())
 					takenLeases[leaseKey] = lease
 				} else {
@@ -242,6 +242,7 @@ func (t *Taker) computeLeasesToTake(expiredLeases []*KLease) []*KLease {
 			//fancy pants pop from slice
 			var eLease *KLease
 			eLease, expiredLeases = expiredLeases[len(expiredLeases)-1], expiredLeases[:len(expiredLeases)-1]
+			eLease.status = "expired"
 			leasesToTake = append(leasesToTake, eLease)
 			numLeasesToReachTarget--
 		}
@@ -250,6 +251,7 @@ func (t *Taker) computeLeasesToTake(expiredLeases []*KLease) []*KLease {
 		//l4g.Debug("Worker %s - Going to try to steal leases", t.workerId)
 		leasesToSteal := t.chooseLeasesToSteal(leaseCounts, numLeasesToReachTarget, target)
 		for _, leaseToSteal := range leasesToSteal {
+			leaseToSteal.status = "stolen"
 			leasesToTake = append(leasesToTake, leaseToSteal)
 		}
 	}

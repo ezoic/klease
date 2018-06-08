@@ -32,6 +32,8 @@ type KLease struct {
 
 	concurrencyToken          *uuid.UUID
 	lastCounterIncrementNanos int64
+
+	status string // contains status information about the lease, useful for storing "stolen"
 }
 
 // NewKLeaseFromLease creates and returns a copy of other
