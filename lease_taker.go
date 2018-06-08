@@ -98,6 +98,7 @@ func (t *Taker) TakeLeases() map[string]*KLease {
 			} else {
 				//l4g.Debug("Worker %s - Did we succeed in taking lease %s? : %t", t.workerId, leaseKey, isTaken)
 				if isTaken {
+					l4g.Info("Worker %s - Stole lease in table %s, key %s", t.workerId, t.leaseManager.table, leaseKey)
 					lease.SetLastCounterIncrementNanos(time.Now().UnixNano())
 					takenLeases[leaseKey] = lease
 				} else {
