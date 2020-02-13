@@ -1,10 +1,14 @@
 package klease
 
 import (
+	"os"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
@@ -19,7 +23,7 @@ func TestNewLeaseManager(t *testing.T) {
 		args args
 		want *Manager
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -42,7 +46,7 @@ func Test_newLeaseManagerForTests(t *testing.T) {
 		args args
 		want *Manager
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -53,22 +57,26 @@ func Test_newLeaseManagerForTests(t *testing.T) {
 	}
 }
 
+func getSession() *session.Session {
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region:      aws.String("us-east-1"),
+		Credentials: credentials.NewStaticCredentials(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), ""),
+	}))
+	return sess
+}
+
 func TestManager_CreateLeaseTableIfNotExists(t *testing.T) {
-	type args struct {
-		readCapacity  int64
-		writeCapacity int64
-	}
 	tests := []struct {
 		name    string
-		k       *Manager
-		args    args
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
+		{name: "test_remove-me-later", wantErr: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.k.CreateLeaseTableIfNotExists(tt.args.readCapacity, tt.args.writeCapacity); (err != nil) != tt.wantErr {
+			k := NewLeaseManager(tt.name, dynamodb.New(getSession()), nil)
+			if err := k.CreateLeaseTableIfNotExists(); (err != nil) != tt.wantErr {
 				t.Errorf("Manager.CreateLeaseTableIfNotExists() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -82,7 +90,7 @@ func TestManager_LeaseTableExists(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -105,7 +113,7 @@ func TestManager_tableStatus(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -133,7 +141,7 @@ func TestManager_WaitUntilLeaseTableExists(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -156,7 +164,7 @@ func TestManager_ListLeases(t *testing.T) {
 		want    []*KLease
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -179,7 +187,7 @@ func TestManager_IsLeaseTableEmpty(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -206,7 +214,7 @@ func TestManager_list(t *testing.T) {
 		want    []*KLease
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -233,7 +241,7 @@ func TestManager_CreateLeaseIfNotExists(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -260,7 +268,7 @@ func TestManager_GetLease(t *testing.T) {
 		want    *KLease
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -287,7 +295,7 @@ func TestManager_RenewLease(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -315,7 +323,7 @@ func TestManager_TakeLease(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -342,7 +350,7 @@ func TestManager_EvictLease(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -364,7 +372,7 @@ func TestManager_DeleteAll(t *testing.T) {
 		k       *Manager
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -385,7 +393,7 @@ func TestManager_DeleteLease(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -407,7 +415,7 @@ func TestManager_UpdateLease(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -434,7 +442,7 @@ func TestManager_GetCheckpoint(t *testing.T) {
 		want    *KCheckpoint
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -460,7 +468,7 @@ func Test_min(t *testing.T) {
 		args args
 		want time.Duration
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

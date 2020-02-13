@@ -21,7 +21,7 @@ func TestCoordinator_RunTaker(t *testing.T) {
 	}))
 	dDB := dynamodb.New(sess)
 	manager := NewLeaseManager("testLease", dDB, NewDynamoSerializer())
-	err := manager.CreateLeaseTableIfNotExists(1, 1)
+	err := manager.CreateLeaseTableIfNotExists()
 	if err != nil {
 		t.Fatal(err)
 	}

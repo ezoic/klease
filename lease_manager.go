@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
@@ -47,17 +48,13 @@ func newLeaseManagerForTests(table string, client *dynamodb.DynamoDB, serialzer 
 	return manager
 }
 
-func (k *Manager) CreateLeaseTableIfNotExists(readCapacity, writeCapacity int64) error {
+func (k *Manager) CreateLeaseTableIfNotExists() error {
 	//l4g.Debug("makin table: %s", k.table)
 	request := &dynamodb.CreateTableInput{}
 	request.SetTableName(k.table)
 	request.SetKeySchema(k.serialzer.GetKeySchema())
 	request.SetAttributeDefinitions(k.serialzer.GetAttributeDefinitions())
-
-	throughput := &dynamodb.ProvisionedThroughput{}
-	throughput.SetReadCapacityUnits(readCapacity)
-	throughput.SetWriteCapacityUnits(writeCapacity)
-	request.SetProvisionedThroughput(throughput)
+	request.BillingMode = aws.String("PAY_PER_REQUEST")
 
 	_, err := k.client.CreateTable(request)
 	if err != nil {
