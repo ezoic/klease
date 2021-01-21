@@ -189,7 +189,7 @@ func (k *Manager) CreateLeaseIfNotExists(lease *KLease) (bool, error) {
 
 	_, err := k.client.PutItem(request)
 	if err != nil {
-		if err.Error() == dynamodb.ErrCodeConditionalCheckFailedException {
+		if isErrCodeConditionalCheckFailedException(err) {
 			//failed because it already existed
 			return false, nil
 		}
@@ -236,7 +236,7 @@ func (k *Manager) RenewLease(lease *KLease) (bool, error) {
 
 	_, err := k.client.UpdateItem(request)
 	if err != nil {
-		if err.Error() == dynamodb.ErrCodeConditionalCheckFailedException {
+		if isErrCodeConditionalCheckFailedException(err) {
 			return false, nil
 		}
 		return false, err
@@ -274,7 +274,7 @@ func (k *Manager) TakeLease(lease *KLease, owner string) (bool, error) {
 
 	_, err := k.client.UpdateItem(request)
 	if err != nil {
-		if err.Error() == dynamodb.ErrCodeConditionalCheckFailedException {
+		if isErrCodeConditionalCheckFailedException(err) {
 			return false, nil
 		}
 		return false, err
@@ -307,7 +307,7 @@ func (k *Manager) EvictLease(lease *KLease) (bool, error) {
 
 	_, err := k.client.UpdateItem(request)
 	if err != nil {
-		if err.Error() == dynamodb.ErrCodeConditionalCheckFailedException {
+		if isErrCodeConditionalCheckFailedException(err) {
 			return false, nil
 		}
 		return false, err
@@ -372,7 +372,7 @@ func (k *Manager) UpdateLease(lease *KLease) (bool, error) {
 
 	_, err := k.client.UpdateItem(request)
 	if err != nil {
-		if err.Error() == dynamodb.ErrCodeConditionalCheckFailedException {
+		if isErrCodeConditionalCheckFailedException(err) {
 			return false, nil
 		}
 		return false, err
@@ -400,4 +400,8 @@ func min(a, b time.Duration) time.Duration {
 		return a
 	}
 	return b
+}
+
+func isErrCodeConditionalCheckFailedException(err error) bool {
+	return strings.HasPrefix(err.Error(), dynamodb.ErrCodeConditionalCheckFailedException)
 }
