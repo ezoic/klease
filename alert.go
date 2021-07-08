@@ -3,8 +3,8 @@ package klease
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/ezoic/ezutil/amazon"
 	"github.com/ezoic/log4go"
-	"github.com/ezoic/sol/amazon"
 )
 
 const (
