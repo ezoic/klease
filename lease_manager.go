@@ -2,6 +2,7 @@ package klease
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -58,6 +59,10 @@ func (k *Manager) CreateLeaseTableIfNotExists() error {
 
 	_, err := k.client.CreateTable(request)
 	if err != nil {
+		SendAlert(
+			fmt.Sprintf("Failed To Create Lease Table For %s", k.table),
+			fmt.Sprintf("Error creating lease table for %s: %s", k.table, err),
+		)
 		if strings.Contains(err.Error(), dynamodb.ErrCodeResourceInUseException) == false {
 			return err
 		}
